@@ -1,0 +1,69 @@
+{% extends "generator/base.html" %}
+{% block title %}Diagnostics · Email Generator{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <div>
+        <h1 class="h3 mb-1">Diagnostics</h1>
+        <p class="text-muted mb-0">Read-only checks. Nothing here changes cPanel, DNS or mailboxes.</p>
+    </div>
+    <form method="post" class="m-0">
+        {% csrf_token %}
+        <button class="btn btn-primary" type="submit">Run live checks</button>
+    </form>
+</div>
+
+<div class="d-flex gap-2 mb-3">
+    <span class="badge text-bg-success">OK {{ summary.ok }}</span>
+    <span class="badge text-bg-warning">Warnings {{ summary.warn }}</span>
+    <span class="badge text-bg-danger">Failures {{ summary.fail }}</span>
+    {% if not network_ran %}
+        <span class="badge text-bg-secondary">Live checks not run yet</span>
+    {% endif %}
+</div>
+
+<div class="card">
+    <div class="table-responsive">
+        <table class="table align-middle mb-0">
+            <thead class="table-light">
+            <tr>
+                <th style="width: 8rem;">Status</th>
+                <th>Check</th>
+                <th>Detail</th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for check in checks %}
+                <tr>
+                    <td>
+                        {% if check.status == "ok" %}
+                            <span class="badge text-bg-success">OK</span>
+                        {% elif check.status == "warn" %}
+                            <span class="badge text-bg-warning">Warn</span>
+                        {% elif check.status == "fail" %}
+                            <span class="badge text-bg-danger">Fail</span>
+                        {% else %}
+                            <span class="badge text-bg-secondary">Skip</span>
+                        {% endif %}
+                    </td>
+                    <td class="fw-semibold">{{ check.label }}</td>
+                    <td>
+                        <div class="small">{{ check.detail }}</div>
+                        {% if check.evidence %}
+                            <ul class="small text-muted mb-0 mt-1">
+                                {% for item in check.evidence %}<li class="text-break">{{ item }}</li>{% endfor %}
+                            </ul>
+                        {% endif %}
+                    </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<p class="text-muted small mt-3 mb-0">
+    Live checks contact the cPanel API, DNS resolvers and (for up to three addresses) the IMAP server.
+    A green result proves connectivity and configuration only — it does not prove end-to-end delivery.
+</p>
+{% endblock %}

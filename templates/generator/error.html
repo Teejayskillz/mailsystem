@@ -1,0 +1,17 @@
+{% extends "generator/base.html" %}
+{% block title %}{{ title|default:"Error" }} · Email Generator{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-12 col-md-8 col-lg-6">
+        <div class="card shadow-sm mt-5">
+            <div class="card-body p-4 text-center">
+                <div class="display-5 mb-2">{{ status|default:"Error" }}</div>
+                <h1 class="h4">{{ title|default:"Something went wrong" }}</h1>
+                <p class="text-muted">{{ message|default:"The request could not be completed." }}</p>
+                <a class="btn btn-primary" href="{% url 'dashboard' %}">Back to dashboard</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

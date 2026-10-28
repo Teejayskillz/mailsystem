@@ -1,0 +1,31 @@
+# Apache rules for the cPanel document root.
+#
+# cPanel's "Setup Python App" usually appends its own Passenger directives to
+# this file. Keep those lines; only add the blocks below.
+#
+# Goal: the Django project root doubles as the document root on cPanel, so deny
+# everything that is not a public asset or a Django URL.
+
+Options -Indexes
+
+# --- deny sensitive files ---------------------------------------------------
+<FilesMatch "(^\.env.*|^\.git.*|\.py$|\.pyc$|\.log$|\.sqlite3$|^requirements\.txt$|^passenger_wsgi\.py$|^manage\.py$|^composer\.(json|lock)$)">
+    Require all denied
+</FilesMatch>
+
+# --- deny sensitive directories --------------------------------------------
+RedirectMatch 404 ^/(logs|backups|legacy|\.venv|\.scratch|\.git|mailgen|generator|templates|static_src)(/|$)
+
+# --- HTTPS ------------------------------------------------------------------
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteCond %{HTTPS} !=on
+    RewriteCond %{HTTP:X-Forwarded-Proto} !https
+    RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
+</IfModule>
+
+# --- basic hardening headers (Django also sets these) ----------------------
+<IfModule mod_headers.c>
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-Robots-Tag "noindex, nofollow"
+</IfModule>

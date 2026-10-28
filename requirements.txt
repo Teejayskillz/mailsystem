@@ -1,0 +1,36 @@
+# Pinned for reproducibility. Python >= 3.10 is required by Django 5.2.
+Django==5.2.18
+asgiref==3.13.0
+sqlparse==0.6.0
+tzdata==2026.6
+
+# MySQL driver (pure Python, no compiler needed on cPanel)
+PyMySQL==1.2.3
+
+# HTTP client for the cPanel UAPI
+requests==2.34.2
+certifi==2026.10.23
+charset_normalizer==3.5.2
+idna==3.20
+urllib3==2.8.0
+
+# Maintained IMAP client (no custom MIME parser)
+imap-tools==1.16.0
+
+# HTML sanitisation (ammonia bindings)
+nh3==0.3.7
+
+# Field encryption for stored mailbox passwords
+cryptography==50.0.2
+cffi==2.1.1
+pycparser==3.12
+typing_extensions==4.16.0
+
+# Static files behind Passenger/WSGI
+whitenoise==6.11.0
+
+# Environment configuration
+python-dotenv==1.1.1
+
+# DNS/MX diagnostics
+dnspython==2.9.0

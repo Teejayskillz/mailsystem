@@ -9,16 +9,17 @@ backups/*.zip
 .env
 .env.*
 !.env.example
+logs/
+staticfiles/
 
-# --- PHP implementation (archived under legacy/, vendor is regenerable) ---
+# --- archived PHP prototype (vendor is regenerable from composer.lock) ---
 vendor/
-config/config.php
-storage/logs/*.log
-storage/sessions/*
-storage/cache/*
+legacy/php-mvp-v2/vendor/
+legacy/php-mvp-v2/config/config.php
 
 # --- editors / OS ---
 .idea/
 .vscode/
 .DS_Store
 Thumbs.db
+

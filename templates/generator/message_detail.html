@@ -1,0 +1,51 @@
+{% extends "generator/base.html" %}
+{% block title %}{{ message.subject|default:"Message" }} · Email Generator{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'address_detail' address.pk %}">{{ address.address }}</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Message</li>
+    </ol>
+</nav>
+
+<div class="card mb-3">
+    <div class="card-body">
+        <h1 class="h5 mb-2">{{ message.subject|default:"(no subject)" }}</h1>
+        <dl class="row mb-0 small text-muted">
+            <dt class="col-sm-2">From</dt>
+            <dd class="col-sm-10">{% if message.from_name %}{{ message.from_name }} &lt;{{ message.from_addr }}&gt;{% else %}{{ message.from_addr|default:"(unknown)" }}{% endif %}</dd>
+            <dt class="col-sm-2">To</dt>
+            <dd class="col-sm-10 font-monospace">{{ address.address }}</dd>
+            <dt class="col-sm-2">Date</dt>
+            <dd class="col-sm-10">{{ message.sent_at|date:"Y-m-d H:i:s T"|default:"unknown" }}</dd>
+            {% if message.message_id %}
+                <dt class="col-sm-2">Message-ID</dt>
+                <dd class="col-sm-10 text-break font-monospace">{{ message.message_id }}</dd>
+            {% endif %}
+        </dl>
+    </div>
+</div>
+
+<div class="alert alert-secondary small py-2">
+    Scripts, forms, external images and styles from the sender are stripped.
+    The message is displayed in a sandboxed frame; links open in a new tab.
+</div>
+
+<div class="card">
+    <div class="card-body p-0">
+        <iframe
+            src="{{ render_url }}"
+            class="mail-frame w-100 border-0"
+            sandbox="allow-popups allow-popups-to-escape-sandbox"
+            referrerpolicy="no-referrer"
+            title="Message content"
+            data-autoheight="true"></iframe>
+    </div>
+</div>
+
+<div class="mt-3">
+    <a class="btn btn-outline-secondary btn-sm" href="{% url 'address_detail' address.pk %}">Back to address</a>
+</div>
+{% endblock %}

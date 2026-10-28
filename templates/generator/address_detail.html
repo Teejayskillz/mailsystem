@@ -1,0 +1,149 @@
+{% extends "generator/base.html" %}
+{% block title %}{{ address.address }} · Email Generator{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item active" aria-current="page">{{ address.address }}</li>
+    </ol>
+</nav>
+
+<div class="card mb-3">
+    <div class="card-body">
+        <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
+            <div>
+                <h1 class="h4 mb-1 font-monospace">{{ address.address }}</h1>
+                <div class="mb-2">{% include "generator/_badges.html" with address=address %}</div>
+                <div class="small text-muted">
+                    Forwards to <code>{{ address.forward_to|default:"(not set)" }}</code>
+                    · created {{ address.created_at|date:"Y-m-d H:i" }}
+                    {% if address.last_synced_at %}· last sync {{ address.last_synced_at|date:"Y-m-d H:i" }}{% endif %}
+                </div>
+            </div>
+            <div class="d-flex flex-wrap gap-2">
+                <button type="button" class="btn btn-outline-secondary" data-copy="{{ address.address }}">Copy address</button>
+
+                <form method="post" action="{% url 'sync' %}" class="m-0">
+                    {% csrf_token %}
+                    <input type="hidden" name="next" value="{% url 'address_detail' address.pk %}">
+                    <button class="btn btn-outline-primary" type="submit">Sync now</button>
+                </form>
+
+                {% if address.status == "active" %}
+                    <form method="post" action="{% url 'address_action' address.pk 'disable' %}" class="m-0"
+                          data-confirm="Disable {{ address.address }}? Forwarding is removed and incoming mail is suspended.">
+                        {% csrf_token %}
+                        <button class="btn btn-outline-warning" type="submit">Disable</button>
+                    </form>
+                {% elif address.status == "disabled" %}
+                    <form method="post" action="{% url 'address_action' address.pk 'enable' %}" class="m-0">
+                        {% csrf_token %}
+                        <button class="btn btn-outline-success" type="submit">Enable</button>
+                    </form>
+                {% endif %}
+
+                <form method="post" action="{% url 'address_action' address.pk 'delete' %}" class="m-0"
+                      data-confirm="Delete {{ address.address }} from cPanel? This removes the mailbox and forwarder.">
+                    {% csrf_token %}
+                    <button class="btn btn-outline-danger" type="submit">Delete</button>
+                </form>
+            </div>
+        </div>
+
+        {% if address.last_error %}
+            <div class="alert alert-danger mt-3 mb-0 py-2 small">
+                <strong>Last error:</strong> {{ address.last_error }}
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card mb-3">
+    <div class="card-body d-flex flex-wrap justify-content-between align-items-center gap-2">
+        <div class="small">
+            <strong>Forwarding evidence:</strong>
+            {% if address.forward_confirmed %}
+                confirmed {{ address.forward_confirmed_at|date:"Y-m-d H:i" }}
+            {% else %}
+                not confirmed in your primary inbox yet
+            {% endif %}
+        </div>
+        {% if not address.forward_confirmed %}
+            <form method="post" action="{% url 'address_action' address.pk 'confirm-forward' %}" class="m-0">
+                {% csrf_token %}
+                <button class="btn btn-sm btn-outline-info" type="submit">I saw the forwarded copy</button>
+            </form>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header bg-white d-flex flex-wrap justify-content-between align-items-center gap-2">
+        <span class="fw-semibold">Messages</span>
+        <form method="get" class="d-flex gap-2" role="search">
+            <input class="form-control form-control-sm" type="search" name="q" value="{{ query }}"
+                   placeholder="Filter subject or sender">
+            <button class="btn btn-sm btn-outline-secondary" type="submit">Filter</button>
+        </form>
+    </div>
+
+    {% if page.object_list %}
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                <tr>
+                    <th>From</th>
+                    <th>Subject</th>
+                    <th>Received</th>
+                    <th></th>
+                </tr>
+                </thead>
+                <tbody>
+                {% for message in page.object_list %}
+                    <tr class="{% if not message.is_read %}fw-semibold{% endif %}">
+                        <td class="text-truncate" style="max-width: 240px;">
+                            {{ message.from_addr|default:"(unknown)" }}
+                            {% if message.from_name %}<div class="small text-muted fw-normal">{{ message.from_name }}</div>{% endif %}
+                        </td>
+                        <td class="text-truncate" style="max-width: 360px;">
+                            <a class="text-decoration-none" href="{% url 'message_detail' message.pk %}">
+                                {{ message.subject|default:"(no subject)" }}
+                            </a>
+                        </td>
+                        <td class="text-nowrap small text-muted">{{ message.sent_at|date:"Y-m-d H:i"|default:"—" }}</td>
+                        <td class="text-end">
+                            <a class="btn btn-sm btn-outline-primary" href="{% url 'message_detail' message.pk %}">Open</a>
+                        </td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {% if page.has_other_pages %}
+            <div class="card-body d-flex justify-content-between align-items-center">
+                <div class="small text-muted">Page {{ page.number }} of {{ page.paginator.num_pages }}</div>
+                <div class="d-flex gap-2">
+                    {% if page.has_previous %}
+                        <a class="btn btn-sm btn-outline-secondary"
+                           href="?page={{ page.previous_page_number }}{% if query %}&q={{ query|urlencode }}{% endif %}">Previous</a>
+                    {% endif %}
+                    {% if page.has_next %}
+                        <a class="btn btn-sm btn-outline-secondary"
+                           href="?page={{ page.next_page_number }}{% if query %}&q={{ query|urlencode }}{% endif %}">Next</a>
+                    {% endif %}
+                </div>
+            </div>
+        {% endif %}
+    {% else %}
+        <div class="card-body text-muted">
+            {% if query %}
+                No messages match “{{ query }}”.
+            {% else %}
+                No messages yet. Send a test email here, then press “Sync now”.
+            {% endif %}
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

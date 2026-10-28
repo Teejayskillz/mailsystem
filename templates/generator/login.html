@@ -1,0 +1,38 @@
+{% extends "generator/base.html" %}
+{% block title %}Sign in · Email Generator{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-12 col-sm-9 col-md-6 col-lg-4">
+        <div class="card shadow-sm mt-5">
+            <div class="card-body p-4">
+                <h1 class="h4 mb-1">Administrator sign in</h1>
+                <p class="text-muted small mb-4">This tool has a single private account.</p>
+
+                {% if form.non_field_errors %}
+                    <div class="alert alert-danger py-2">
+                        {% for error in form.non_field_errors %}<div>{{ error }}</div>{% endfor %}
+                    </div>
+                {% endif %}
+
+                <form method="post" novalidate>
+                    {% csrf_token %}
+                    <input type="hidden" name="next" value="{{ request.GET.next|default:'' }}">
+                    <div class="mb-3">
+                        <label for="{{ form.username.id_for_label }}" class="form-label">Username</label>
+                        {{ form.username }}
+                    </div>
+                    <div class="mb-4">
+                        <label for="{{ form.password.id_for_label }}" class="form-label">Password</label>
+                        {{ form.password }}
+                    </div>
+                    <button class="btn btn-primary w-100" type="submit">Sign in</button>
+                </form>
+            </div>
+        </div>
+        <p class="text-center text-muted small mt-3">
+            Sessions expire after inactivity. Failed attempts are rate limited.
+        </p>
+    </div>
+</div>
+{% endblock %}

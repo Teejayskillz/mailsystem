@@ -1,0 +1,21 @@
+{% if address.is_configured %}
+    <span class="badge text-bg-success" title="Mailbox and forwarder confirmed in cPanel">Configured</span>
+{% else %}
+    <span class="badge text-bg-secondary" title="Mailbox/forwarder not verified">Not configured</span>
+{% endif %}
+
+{% if address.is_inbox_capable %}
+    <span class="badge text-bg-success" title="IMAP login and INBOX select succeeded">Inbox ✓</span>
+{% else %}
+    <span class="badge text-bg-secondary" title="IMAP access has not been verified">Inbox ?</span>
+{% endif %}
+
+{% if address.is_delivery_tested %}
+    <span class="badge text-bg-success" title="An external sender's message was fetched from this mailbox">Delivery tested</span>
+{% else %}
+    <span class="badge text-bg-warning" title="No external message has been received yet">Not delivery-tested</span>
+{% endif %}
+
+{% if address.forward_confirmed %}
+    <span class="badge text-bg-info" title="You confirmed the forwarded copy in your primary inbox">Forward seen</span>
+{% endif %}

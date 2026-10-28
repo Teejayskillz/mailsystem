@@ -1,0 +1,157 @@
+{% extends "generator/base.html" %}
+{% block title %}Dashboard · Email Generator{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <div>
+        <h1 class="h3 mb-1">Dashboard</h1>
+        <p class="text-muted mb-0">
+            Addresses on <code>{{ address_domain|default:"(domain not configured)" }}</code>
+            forwarding to <code>{{ forward_to|default:"(not configured)" }}</code>
+        </p>
+    </div>
+    <div class="d-flex gap-2">
+        <form method="post" action="{% url 'sync' %}" class="m-0" data-sync-form>
+            {% csrf_token %}
+            <button class="btn btn-outline-primary" type="submit">Sync inboxes</button>
+        </form>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-6 col-lg-3">
+        <div class="card h-100"><div class="card-body">
+            <div class="text-muted small text-uppercase">Addresses</div>
+            <div class="fs-3 fw-semibold">{{ stats.total }} <span class="fs-6 text-muted">/ {{ stats.limit }}</span></div>
+        </div></div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="card h-100"><div class="card-body">
+            <div class="text-muted small text-uppercase">Configured</div>
+            <div class="fs-3 fw-semibold">{{ stats.configured }}</div>
+        </div></div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="card h-100"><div class="card-body">
+            <div class="text-muted small text-uppercase">Inbox-capable</div>
+            <div class="fs-3 fw-semibold">{{ stats.inbox_capable }}</div>
+        </div></div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="card h-100"><div class="card-body">
+            <div class="text-muted small text-uppercase">Delivery-tested</div>
+            <div class="fs-3 fw-semibold">{{ stats.delivery_tested }}</div>
+        </div></div>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-body">
+        <h2 class="h5">Generate a new address</h2>
+        <p class="text-muted small mb-3">
+            Creates a real cPanel mailbox and a forwarder to your primary address. A new address is
+            <strong>not</strong> proven to work until a test message arrives.
+        </p>
+        <form method="post" action="{% url 'generate_address' %}" class="row g-2 align-items-end">
+            {% csrf_token %}
+            <div class="col-12 col-md-6">
+                <label class="form-label" for="{{ generate_form.label.id_for_label }}">Label (optional)</label>
+                {{ generate_form.label }}
+            </div>
+            <div class="col-12 col-md-auto">
+                <button class="btn btn-primary" type="submit"
+                        {% if stats.total >= stats.limit %}disabled{% endif %}>
+                    Generate new email
+                </button>
+            </div>
+            {% if stats.total >= stats.limit %}
+                <div class="col-12"><p class="text-danger small mb-0">Address limit reached. Delete one first.</p></div>
+            {% endif %}
+        </form>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+        <span class="fw-semibold">Your addresses</span>
+    </div>
+    {% if addresses %}
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                <tr>
+                    <th>Address</th>
+                    <th>Status</th>
+                    <th>Evidence</th>
+                    <th>Unread</th>
+                    <th>Created</th>
+                    <th class="text-end">Actions</th>
+                </tr>
+                </thead>
+                <tbody>
+                {% for address in addresses %}
+                    <tr>
+                        <td>
+                            <div class="d-flex align-items-center gap-2">
+                                <a class="font-monospace" href="{% url 'address_detail' address.pk %}">{{ address.address }}</a>
+                                <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2"
+                                        data-copy="{{ address.address }}" title="Copy address">Copy</button>
+                            </div>
+                            {% if address.label %}<div class="small text-muted">{{ address.label }}</div>{% endif %}
+                        </td>
+                        <td>
+                            {% if address.status == "active" %}
+                                <span class="badge text-bg-success">Active</span>
+                            {% elif address.status == "disabled" %}
+                                <span class="badge text-bg-secondary">Disabled</span>
+                            {% elif address.status == "failed" %}
+                                <span class="badge text-bg-danger">Failed</span>
+                            {% else %}
+                                <span class="badge text-bg-warning">{{ address.get_status_display }}</span>
+                            {% endif %}
+                        </td>
+                        <td>{% include "generator/_badges.html" with address=address %}</td>
+                        <td>{{ address.unread }}</td>
+                        <td class="text-nowrap small">{{ address.created_at|date:"Y-m-d H:i" }}</td>
+                        <td class="text-end text-nowrap">
+                            <a class="btn btn-sm btn-outline-primary" href="{% url 'address_detail' address.pk %}">Open</a>
+                        </td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <div class="card-body text-muted">
+            No addresses yet. Generate the first one above.
+        </div>
+    {% endif %}
+</div>
+
+<div class="card">
+    <div class="card-header bg-white fw-semibold">Recent messages</div>
+    {% if recent_messages %}
+        <ul class="list-group list-group-flush">
+            {% for message in recent_messages %}
+                <li class="list-group-item d-flex justify-content-between align-items-start gap-3">
+                    <div class="min-w-0">
+                        <a href="{% url 'message_detail' message.pk %}" class="fw-semibold text-decoration-none">
+                            {{ message.subject|default:"(no subject)"|truncatechars:90 }}
+                        </a>
+                        <div class="small text-muted text-truncate">
+                            {{ message.from_addr|default:"(unknown sender)" }} → {{ message.address.address }}
+                        </div>
+                    </div>
+                    <div class="text-end small text-muted text-nowrap">
+                        {{ message.sent_at|date:"Y-m-d H:i"|default:"—" }}
+                    </div>
+                </li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <div class="card-body text-muted">
+            No messages indexed yet. Send a test email to one of the addresses, then press “Sync inboxes”.
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
