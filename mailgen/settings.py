@@ -44,19 +44,41 @@ def env_int(key: str, default: int) -> int:
         return default
 
 
-def env_list(key: str, default: str = "") -> list[str]:
-    raw = env(key, default) or ""
-    return [item.strip() for item in raw.split(",") if item.strip()]
-
-
 DEBUG = env_bool("DJANGO_DEBUG", False)
 
-# Safe default: local hosts in development, explicit configuration in production
-# (an empty list here is reported as a startup error instead of silently
-# accepting arbitrary Host headers).
-_default_hosts = "localhost,127.0.0.1,[::1],testserver" if DEBUG else ""
-ALLOWED_HOSTS = env_list("DJANGO_ALLOWED_HOSTS", _default_hosts)
-CSRF_TRUSTED_ORIGINS = env_list("DJANGO_CSRF_TRUSTED_ORIGINS", "")
+# Hosts and origins are hard-coded for this deployment so that a mis-escaped
+# environment value (for example "www\.example\.com" or "www\\.example.com")
+# cannot break request validation again. Environment values are still honoured,
+# but they are normalised (backslashes, quotes and whitespace removed) and
+# validated; invalid entries are dropped instead of taking the site down.
+HARDCODED_HOSTS = [
+    "mailsystem.nzdworld.com",
+    "www.mailsystem.nzdworld.com",
+]
+HARDCODED_CSRF_ORIGINS = [
+    "https://mailsystem.nzdworld.com",
+    "https://www.mailsystem.nzdworld.com",
+]
+
+_hosts = list(HARDCODED_HOSTS)
+if DEBUG:
+    _hosts += ["localhost", "127.0.0.1", "[::1]"]
+
+_env_hosts = (env("DJANGO_ALLOWED_HOSTS") or "").strip()
+if _env_hosts:
+    _hosts += appconfig.normalize_hosts(_env_hosts, strict=False)
+
+ALLOWED_HOSTS = list(dict.fromkeys(_hosts))
+
+_origins = list(HARDCODED_CSRF_ORIGINS)
+if DEBUG:
+    _origins += ["http://localhost:8000", "http://127.0.0.1:8000"]
+
+_env_origins = (env("DJANGO_CSRF_TRUSTED_ORIGINS") or "").strip()
+if _env_origins:
+    _origins += appconfig.normalize_origins(_env_origins, strict=False)
+
+CSRF_TRUSTED_ORIGINS = list(dict.fromkeys(_origins))
 
 SECRET_KEY = env("DJANGO_SECRET_KEY")
 if not SECRET_KEY and DEBUG:
@@ -77,6 +99,9 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    # Must run before SecurityMiddleware/CommonMiddleware: both call
+    # request.get_host(), which raises DisallowedHost on a malformed value.
+    "generator.middleware.HostHeaderSanitizerMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",

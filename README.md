@@ -49,7 +49,12 @@ Only a handful of values are required. Database and address policy each fit on o
 | `CPANEL_USER` | cPanel account | `cpuser` |
 | `CPANEL_TOKEN` | API token | from cPanel » Security » Manage API Tokens |
 | `IMAP_HOST` | mail server hostname | `mail.example.com` |
-| `DJANGO_ALLOWED_HOSTS` | required when `DEBUG=0` | `app.example.com` |
+| `DJANGO_ALLOWED_HOSTS` | optional extra hosts (normalised) | `app.example.com` |
+
+This deployment hard-codes `mailsystem.nzdworld.com` and `www.mailsystem.nzdworld.com` in
+`ALLOWED_HOSTS`, and both `https://` origins in `CSRF_TRUSTED_ORIGINS`, so a mis-escaped
+environment value cannot break login again. If the domain changes, update the
+`HARDCODED_HOSTS` / `HARDCODED_CSRF_ORIGINS` constants in `mailgen/settings.py`.
 
 ### `DATABASE_URL`
 

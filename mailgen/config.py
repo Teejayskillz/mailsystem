@@ -54,6 +54,78 @@ class ConfigError(ValueError):
 
 
 # ---------------------------------------------------------------------------
+# ALLOWED_HOSTS / CSRF_TRUSTED_ORIGINS normalisation
+#
+# These values are frequently pasted from regexes or logs ("www\.example\.com")
+# or from JSON ("www\\.example.com"), which puts literal backslashes into the
+# setting and makes every request fail with DisallowedHost. Normalisation strips
+# the escaping, then validates strictly.
+# ---------------------------------------------------------------------------
+_HOST_ENTRY = re.compile(
+    r"^(?:\*|(?:\*\.)?(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63})(?::\d{1,5})?$"
+)
+_IPV6_HOST_ENTRY = re.compile(r"^\[[0-9a-f:.]+\](?::\d{1,5})?$")
+_ORIGIN_ENTRY = re.compile(
+    r"^https?://(?:(?:\*\.)?[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?|\[[0-9a-f:.]+\])(?::\d{1,5})?$"
+)
+
+
+def normalize_hosts(raw: str, *, strict: bool = True) -> list[str]:
+    """Turn a comma-separated host list into clean hostnames.
+
+    Removes backslashes, quotes, whitespace and trailing dots. With
+    ``strict=False`` invalid entries are dropped instead of raising, so a bad
+    environment value can never take the site down.
+    """
+    hosts: list[str] = []
+
+    for entry in _split_entries(raw):
+        if _HOST_ENTRY.match(entry) or _IPV6_HOST_ENTRY.match(entry):
+            hosts.append(entry)
+        elif strict:
+            raise ConfigError(
+                f"invalid host entry {entry!r}; use plain hostnames such as "
+                "'app.example.com' (no backslashes, schemes or paths)"
+            )
+
+    return _dedupe(hosts)
+
+
+def normalize_origins(raw: str, *, strict: bool = True) -> list[str]:
+    """Turn a comma-separated origin list into clean ``scheme://host[:port]``."""
+    origins: list[str] = []
+
+    for entry in _split_entries(raw):
+        if _ORIGIN_ENTRY.match(entry):
+            origins.append(entry)
+        elif strict:
+            raise ConfigError(
+                f"invalid origin entry {entry!r}; expected https://host[:port] "
+                "(no trailing slash, path or backslashes)"
+            )
+
+    return _dedupe(origins)
+
+
+def _split_entries(raw: str) -> list[str]:
+    entries: list[str] = []
+
+    for part in (raw or "").split(","):
+        entry = part.strip().strip('"').strip("'").strip()
+        entry = entry.replace("\\", "").lower()
+        entry = entry.rstrip("/").rstrip(".")
+        if entry:
+            entries.append(entry)
+
+    return entries
+
+
+def _dedupe(values: list[str]) -> list[str]:
+    return list(dict.fromkeys(values))
+
+
+
+# ---------------------------------------------------------------------------
 # DATABASE_URL
 # ---------------------------------------------------------------------------
 def parse_database_url(raw: str, base_dir: Path) -> dict[str, Any]:

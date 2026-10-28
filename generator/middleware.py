@@ -1,9 +1,45 @@
 from __future__ import annotations
 
+import logging
+
 from django.conf import settings
 from django.contrib.auth import logout
 from django.shortcuts import redirect
 from django.utils import timezone
+
+logger = logging.getLogger("mailgen")
+
+
+class HostHeaderSanitizerMiddleware:
+    """Remove backslashes from the Host header before host validation runs.
+
+    A proxy, control panel or hand-edited vhost that escapes dots
+    (``www\.example\.com``) reaches Django as an illegal host and every request
+    fails with ``DisallowedHost``. Backslashes are never valid in a Host header,
+    so stripping them cannot weaken host validation: Django still checks the
+    cleaned value against ``ALLOWED_HOSTS``.
+    """
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        host = request.META.get("HTTP_HOST", "")
+        if "\\" in host:
+            cleaned = host.replace("\\", "").strip()
+            logger.warning(
+                "host header contained backslashes; sanitised original=%r cleaned=%r path=%s",
+                host,
+                cleaned,
+                request.META.get("PATH_INFO", ""),
+            )
+            request.META["HTTP_HOST"] = cleaned
+
+        server_name = request.META.get("SERVER_NAME", "")
+        if "\\" in server_name:
+            request.META["SERVER_NAME"] = server_name.replace("\\", "").strip()
+
+        return self.get_response(request)
 
 CSP = (
     "default-src 'self'; "

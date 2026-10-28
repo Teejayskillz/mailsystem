@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import logging
 
 from django.conf import settings
@@ -87,6 +88,26 @@ def logout_view(request):
 
 
 def csrf_failure(request, reason=""):
+    # Log enough to diagnose a rejected POST without recording cookies or tokens.
+    # "Origin: null" comes from the client (sandboxed frame, preview pane, proxy):
+    # the server must never treat it as a trusted origin.
+    logger.warning(
+        "csrf_failure %s",
+        json.dumps(
+            {
+                "reason": reason,
+                "host": request.META.get("HTTP_HOST", ""),
+                "origin": request.META.get("HTTP_ORIGIN", "<absent>"),
+                "referer": request.META.get("HTTP_REFERER", "<absent>"),
+                "sec_fetch_site": request.META.get("HTTP_SEC_FETCH_SITE", "<absent>"),
+                "sec_fetch_mode": request.META.get("HTTP_SEC_FETCH_MODE", "<absent>"),
+                "secure": request.is_secure(),
+                "path": request.META.get("PATH_INFO", ""),
+            },
+            separators=(",", ":"),
+        ),
+    )
+
     return render(
         request,
         "generator/error.html",

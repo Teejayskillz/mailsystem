@@ -35,6 +35,13 @@ the env file, restart the app.
 - **Sessions** – database sessions, 12 h absolute lifetime, 30 min idle timeout enforced by
   middleware, rotated on login, `Secure`/`HttpOnly`/`SameSite=Strict` outside DEBUG.
 - **CSRF** – Django's middleware on every state-changing view; only POST mutates state.
+  `CSRF_TRUSTED_ORIGINS` is a hard-coded list of the two HTTPS hosts; `Origin: null` is
+  never trusted. Rejected requests are logged with host/origin/referer/Sec-Fetch metadata
+  (never cookies or tokens) to make client-side causes diagnosable.
+- **Host header** – `ALLOWED_HOSTS` is hard-coded for this deployment (plus normalised
+  environment extras and localhost when `DEBUG=1`). A middleware strips illegal
+  backslashes from `Host` before validation; because Django still checks the cleaned value
+  against `ALLOWED_HOSTS`, this cannot be used to bypass host validation.
 - **Authorisation** – every view except `/login/` is `@login_required`.
 - **SQL** – Django ORM only; no raw SQL or string-built queries.
 - **XSS** – email HTML is rebuilt by `nh3` against an allow-list (no scripts, no styles, no
