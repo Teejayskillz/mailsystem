@@ -1,0 +1,37 @@
+{
+    "name": "personal/email-generator",
+    "description": "Single-admin personal email generator for cPanel (PHP + MySQL).",
+    "type": "project",
+    "license": "proprietary",
+    "require": {
+        "php": ">=8.2 <8.4",
+        "ext-pdo": "*",
+        "ext-openssl": "*",
+        "ext-curl": "*",
+        "ext-mbstring": "*",
+        "ext-dom": "*",
+        "ext-json": "*",
+        "ext-sodium": "*",
+        "ext-fileinfo": "*",
+        "ext-iconv": "*",
+        "ext-libxml": "*",
+        "ext-zip": "*",
+        "webklex/php-imap": "6.2.0",
+        "ezyang/htmlpurifier": "^4.17"
+    },
+    "autoload": {
+        "psr-4": {
+            "App\\": "app/"
+        }
+    },
+    "config": {
+        "platform": {
+            "php": "8.2.0"
+        },
+        "optimize-autoloader": true,
+        "sort-packages": true,
+        "allow-plugins": false
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}

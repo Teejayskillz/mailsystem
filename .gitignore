@@ -1,0 +1,24 @@
+﻿# --- runtime / local only ---
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.sqlite3
+.scratch/
+backups/*.zip
+.env
+.env.*
+!.env.example
+
+# --- PHP implementation (archived under legacy/, vendor is regenerable) ---
+vendor/
+config/config.php
+storage/logs/*.log
+storage/sessions/*
+storage/cache/*
+
+# --- editors / OS ---
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
