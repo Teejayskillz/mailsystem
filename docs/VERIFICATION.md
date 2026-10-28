@@ -10,7 +10,7 @@ hosting works; it proves the code behaves correctly against controlled substitut
 |---|---|---|
 | Django project boots | `manage.py check` | 0 issues |
 | Migrations on MySQL/MariaDB | `manage.py migrate` | all applied (auth, admin, sessions, generator) |
-| Test suite | `manage.py test` | **149 tests, OK** |
+| Test suite | `manage.py test` | **161 tests, OK** |
 | `DATABASE_URL` parsing | mysql / mariadb / sqlite, percent-encoded credentials, default port, rejected schemes and parameters | pass |
 | `MAILGEN_URL` parsing | domain from host or parameter, defaults, precedence of legacy variables, rejected credentials/paths/duplicates/unknown parameters | pass |
 | Startup validation | missing/malformed values raise `ImproperlyConfigured` with a list; messages contain no secrets | pass (verified by subprocess run) |
@@ -38,6 +38,8 @@ hosting works; it proves the code behaves correctly against controlled substitut
 | Logout | GET 405, POST destroys session | pass |
 | Diagnostics | offline checks, no token leakage | pass |
 | cPanel client over real HTTP | local mock UAPI: auth header, JSON parsing, 401 handling, create/disable/enable/delete | pass (14 assertions) |
+| cPanel UAPI live (read-only) | `s44.srvx.ws:2083`, token auth, TLS verified: `list_mail_domains` → 33 domains incl. `mailsystem.nzdworld.com`; `list_pops` → 31; `list_forwarders` → 0 | pass (2026-10-28) |
+| cPanel response shapes | flat `{status,data}` and wrapped `{result:{status,data}}` envelopes; HTML login page, HTTP 401/500 and empty-error cases produce distinct, secret-free messages | pass |
 | HTTP smoke test | live dev server: login, CSRF, dashboard, CSP header, static files, 404, anonymous redirect | pass (13 assertions) |
 
 ## Verified by framework (not app-specific testing needed)

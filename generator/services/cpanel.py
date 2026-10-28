@@ -111,19 +111,104 @@ class CpanelClient:
         try:
             payload = response.json()
         except ValueError as exc:
-            raise CpanelError("cPanel API returned a non-JSON response.") from exc
-
-        result = payload.get("result") or {}
-        if int(result.get("status", 0)) != 1:
-            errors = result.get("errors") or result.get("messages") or []
-            detail = "; ".join(str(item) for item in errors)[:400] or "unknown error"
+            content_type = response.headers.get("Content-Type", "<unknown>")
+            logger.warning(
+                "cPanel returned non-JSON module=%s function=%s http=%s content_type=%r duration_ms=%s",
+                module,
+                function,
+                status,
+                content_type,
+                self.last_duration_ms,
+            )
             raise CpanelError(
-                f"cPanel reported an error in {module}::{function}: {detail}",
+                f"cPanel returned a non-JSON response for {module}::{function} "
+                f"(HTTP {status}, Content-Type: {content_type}). "
+                "An HTML login page here usually means the API token was rejected, "
+                "the account requires MFA, or the endpoint is wrong.",
+                status=status,
+                permanent=True,
+            ) from exc
+
+        result = self._unwrap(payload)
+
+        try:
+            result_status = int(result.get("status", 0))
+        except (TypeError, ValueError):
+            result_status = 0
+
+        if result_status != 1:
+            detail = self._describe_failure(result)
+            logger.warning(
+                "cPanel API error module=%s function=%s http=%s status=%r "
+                "errors=%r messages=%r warnings=%r content_type=%r duration_ms=%s",
+                module,
+                function,
+                status,
+                result.get("status"),
+                result.get("errors"),
+                result.get("messages"),
+                result.get("warnings"),
+                response.headers.get("Content-Type", ""),
+                self.last_duration_ms,
+            )
+            raise CpanelError(
+                f"cPanel API error in {module}::{function} (HTTP {status}): {detail}",
                 status=status,
                 permanent=True,
             )
 
+        logger.debug(
+            "cPanel API ok module=%s function=%s http=%s duration_ms=%s",
+            module,
+            function,
+            status,
+            self.last_duration_ms,
+        )
+
         return result.get("data")
+
+    # -- response shapes --------------------------------------------------
+    @staticmethod
+    def _unwrap(payload: Any) -> dict[str, Any]:
+        """Return the UAPI result object from either envelope shape.
+
+        Standard cPanel: {"result": {"status": 1, "data": ...}}
+        Some cPanel builds/proxies (observed on s44.srvx.ws): a *flat* envelope
+        {"status": 1, "data": ..., "errors": null, "messages": null}
+        without the "result" wrapper.
+        """
+        if not isinstance(payload, dict):
+            return {}
+
+        result = payload.get("result")
+        if isinstance(result, dict):
+            return result
+
+        if "status" in payload:
+            return payload
+
+        return {}
+
+    @staticmethod
+    def _describe_failure(result: dict[str, Any]) -> str:
+        parts: list[str] = []
+
+        for key in ("errors", "messages", "warnings"):
+            value = result.get(key)
+            if isinstance(value, (list, tuple)):
+                parts.extend(str(item).strip() for item in value if str(item).strip())
+            elif value:
+                parts.append(str(value).strip())
+
+        detail = "; ".join(part for part in parts if part)[:400]
+        if detail:
+            return detail
+
+        return (
+            f"status={result.get('status')!r} with no error text from cPanel. "
+            "This usually means the Email module is unavailable for the account "
+            "or its 'Receive Mail' role is restricted."
+        )
 
     # -- helpers ----------------------------------------------------------
     @staticmethod

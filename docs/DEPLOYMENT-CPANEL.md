@@ -135,6 +135,7 @@ address.
 | Login page loads, static files 404 | `collectstatic` not run / wrong app root |
 | `ImproperlyConfigured: PyMySQL` | requirements not installed in the app's venv |
 | Diagnostics: cPanel 401/403 | token revoked, wrong account name, or Feature Manager disabled |
+| `cPanel API error … unknown error` (older builds) | an earlier client build read only the wrapped UAPI envelope (`{"result":{…}}`). Some cPanel hosts return a **flat** envelope (`{"status":1,"data":…}`). The client now accepts both; if a `status: 0` arrives with no text, the message names the Email module / *Receive Mail* role instead of "unknown error". |
 | Diagnostics: cPanel request failed | outbound 2083 blocked from the server |
 | IMAP login failed | wrong host/port, certificate mismatch, mailbox password rotated |
 | `DisallowedHost` with a backslash, e.g. `'www\.example\.com'` | the URL, vhost or proxy escaped the dots. The app strips illegal backslashes from the Host header (still validated against `ALLOWED_HOSTS`) and logs `host header contained backslashes`. Also fix the source: the cPanel application URL / vhost `ServerName` and any bookmark should be the plain hostname. |

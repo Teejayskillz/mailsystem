@@ -144,11 +144,11 @@ that `/static/admin/css/base.css` is served by the app with `DEBUG=0`.
 python manage.py test
 ```
 
-149 tests cover URL parsing and configuration validation, startup failure modes,
-provisioning, IMAP adapter mapping, sync/idempotency, sanitisation, CSRF, login
-throttling, host/referrer-policy regressions, lifecycle actions, diagnostics and the
-admin static pipeline. They use fakes for cPanel and IMAP, so they run without hosting
-access.
+161 tests cover URL parsing and configuration validation, startup failure modes,
+provisioning, cPanel UAPI response shapes and error reporting, IMAP adapter mapping,
+sync/idempotency, sanitisation, CSRF, login throttling, host/referrer-policy regressions,
+lifecycle actions, diagnostics and the admin static pipeline. They use fakes for cPanel and
+IMAP, so they run without hosting access.
 
 ## Layout
 
