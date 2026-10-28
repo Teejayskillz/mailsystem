@@ -10,7 +10,7 @@ hosting works; it proves the code behaves correctly against controlled substitut
 |---|---|---|
 | Django project boots | `manage.py check` | 0 issues |
 | Migrations on MySQL/MariaDB | `manage.py migrate` | all applied (auth, admin, sessions, generator) |
-| Test suite | `manage.py test` | **140 tests, OK** |
+| Test suite | `manage.py test` | **149 tests, OK** |
 | `DATABASE_URL` parsing | mysql / mariadb / sqlite, percent-encoded credentials, default port, rejected schemes and parameters | pass |
 | `MAILGEN_URL` parsing | domain from host or parameter, defaults, precedence of legacy variables, rejected credentials/paths/duplicates/unknown parameters | pass |
 | Startup validation | missing/malformed values raise `ImproperlyConfigured` with a list; messages contain no secrets | pass (verified by subprocess run) |
@@ -30,6 +30,7 @@ hosting works; it proves the code behaves correctly against controlled substitut
 | Message rendering | CSP `sandbox`, `X-Frame-Options: SAMEORIGIN`, script-free body | pass |
 | CSRF | POST without token ⇒ 403; with token ⇒ 302 | pass |
 | CSRF origins (production fix) | POST `/login/` with `Origin: https://mailsystem.nzdworld.com` ⇒ 302; `Origin: null` ⇒ 403; foreign origin ⇒ 403; `/admin/login/` accepted | pass (live server + tests) |
+| Referrer policy / `Origin: null` fix | `/login/`, `/admin/login/`, dashboard, diagnostics, 404 and CSRF-failure pages send `Referrer-Policy: same-origin` (not `no-referrer`); message render keeps `no-referrer` | pass (live server + tests) |
 | Host header with backslashes | `Host: www\.mailsystem\.nzdworld\.com` ⇒ 200 on `/login/` and `/admin/login/`; foreign host still 400 | pass (live server + tests) |
 | Host/origin normalisation | backslashes, quotes, case, trailing slash and duplicates removed; invalid entries rejected (strict) or dropped (lenient) | pass |
 | Login throttling | 6th failed attempt returns 429 | pass |

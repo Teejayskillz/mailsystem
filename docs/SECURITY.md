@@ -49,10 +49,14 @@ the env file, restart the app.
   with `sandbox` and a `default-src 'none'` CSP. Two independent layers.
 - **Remote images** – removed entirely; no tracking pixels are fetched.
 - **Headers** – CSP (self-only), `X-Frame-Options: DENY` on app pages (SAMEORIGIN for the
-  message frame), `Referrer-Policy: no-referrer`, `nosniff`, `Permissions-Policy`,
+  message frame), `Referrer-Policy: same-origin` on HTML pages, `nosniff`, `Permissions-Policy`,
   `Cross-Origin-Opener-Policy`.
 - **Errors** – `DEBUG=0` in production; custom 404/500 pages; stack traces go to
   `logs/app.log` only.
+- **Referrer policy** – HTML pages use `same-origin`, never `no-referrer`. Per the Fetch
+  standard a `no-referrer` policy makes browsers send `Origin: null` on same-origin form
+  POSTs, which Django's CSRF origin check correctly rejects. The sandboxed message document
+  (no forms, its own CSP) keeps `no-referrer`.
 - **Logging** – no tokens, passwords or message bodies; login events record IP + username.
 
 ## Threat notes

@@ -225,7 +225,11 @@ CSRF_FAILURE_VIEW = "generator.views.csrf_failure"
 SECURE_SSL_REDIRECT = env_bool("DJANGO_SECURE_SSL_REDIRECT", not DEBUG)
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 SECURE_CONTENT_TYPE_NOSNIFF = True
-SECURE_REFERRER_POLICY = "no-referrer"
+# Must NOT be "no-referrer": per the Fetch standard a no-referrer policy makes
+# browsers serialize the Origin of a same-origin form POST as the literal
+# "null", which Django's CSRF origin check correctly rejects. "same-origin"
+# still sends no referrer anywhere else, and keeps Origin intact for forms.
+SECURE_REFERRER_POLICY = "same-origin"
 SECURE_HSTS_SECONDS = env_int("DJANGO_HSTS_SECONDS", 0)
 SECURE_HSTS_INCLUDE_SUBDOMAINS = env_bool("DJANGO_HSTS_SUBDOMAINS", False)
 SECURE_HSTS_PRELOAD = False

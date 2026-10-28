@@ -102,6 +102,7 @@ def csrf_failure(request, reason=""):
                 "sec_fetch_site": request.META.get("HTTP_SEC_FETCH_SITE", "<absent>"),
                 "sec_fetch_mode": request.META.get("HTTP_SEC_FETCH_MODE", "<absent>"),
                 "secure": request.is_secure(),
+                "referrer_policy": getattr(settings, "SECURE_REFERRER_POLICY", "<unset>"),
                 "path": request.META.get("PATH_INFO", ""),
             },
             separators=(",", ":"),
