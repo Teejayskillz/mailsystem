@@ -10,7 +10,13 @@ hosting works; it proves the code behaves correctly against controlled substitut
 |---|---|---|
 | Django project boots | `manage.py check` | 0 issues |
 | Migrations on MySQL/MariaDB | `manage.py migrate` | all applied (auth, admin, sessions, generator) |
-| Test suite | `manage.py test` | **61 tests, OK** |
+| Test suite | `manage.py test` | **119 tests, OK** |
+| `DATABASE_URL` parsing | mysql / mariadb / sqlite, percent-encoded credentials, default port, rejected schemes and parameters | pass |
+| `MAILGEN_URL` parsing | domain from host or parameter, defaults, precedence of legacy variables, rejected credentials/paths/duplicates/unknown parameters | pass |
+| Startup validation | missing/malformed values raise `ImproperlyConfigured` with a list; messages contain no secrets | pass (verified by subprocess run) |
+| Production security defaults | `DEBUG=0` ⇒ Secure session/CSRF cookies, HTTPS redirect on | pass |
+| Admin static files | WhiteNoise middleware order, storage backend, admin CSS discoverable and collected | pass |
+| Admin CSS served with `DEBUG=0` | live server: `/static/admin/css/base.css` 200 `text/css` (22 KB), admin JS and Bootstrap also 200 | pass |
 | Address generation | 50 samples, uniqueness + alphabet + prefix | pass |
 | Provisioning happy path | fake cPanel: mailbox + forwarder + encrypted password | pass |
 | Provisioning rollback | forwarder failure ⇒ mailbox deleted, status `failed` | pass |

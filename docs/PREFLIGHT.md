@@ -10,7 +10,7 @@ architecture.
 | # | Area | How to check | Pass criteria |
 |---|------|--------------|---------------|
 | A | Python / Django support | cPanel » **Setup Python App** (or your host's equivalent) | Python 3.10+ selectable; an app can be created for the subdomain |
-| B | Database | cPanel » MySQL Databases: create DB + user, attach user with ALL on that DB | Connection succeeds (`python manage.py migrate`) |
+| B | Database | cPanel » MySQL Databases: create DB + user, attach user with ALL on that DB; put the credentials in `DATABASE_URL` | `python manage.py check` and `migrate` succeed |
 | C | cPanel UAPI token | cPanel » Security » **Manage API Tokens** → create token for your account | Feature visible and a token can be created |
 | D | Token actually works | From the server (SSH/Terminal) or via `python manage.py check_hosting`: `curl -sS -H "Authorization: cpanel USER:TOKEN" "https://SERVER:2083/execute/Email/list_mail_domains"` | HTTP 200, JSON with `"status":1` and your domain listed |
 | E | Mail domain + MX | cPanel » **Email Routing**: the domain must be a *Local Mail Exchanger*; `dig MX example.com` | MX points at this server |

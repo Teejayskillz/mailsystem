@@ -6,10 +6,19 @@
 |---|---|---|
 | Django `SECRET_KEY` | env file outside docroot, mode 600 | never logged, never rendered |
 | `MAILGEN_FIELD_KEY` | env file outside docroot | encrypts mailbox passwords (Fernet) |
+| Database password | inside `DATABASE_URL`, env file outside docroot | mode 600; never rendered or logged |
 | cPanel API token | env file outside docroot | full account power; rotate if leaked |
 | Mailbox passwords | MySQL, Fernet ciphertext only | decrypted in memory for IMAP |
 | Session data | MySQL `django_session` | HttpOnly, Secure, SameSite=Strict |
 | Message bodies | **not stored** | fetched from IMAP when opened |
+
+`DJANGO_SECRET_KEY` (session/CSRF signing) and `MAILGEN_FIELD_KEY` (mailbox-password
+encryption) are deliberately separate: rotating one must not invalidate the other.
+`MAILGEN_URL` carries only address policy — the parser rejects URLs containing
+credentials, so cPanel and database secrets cannot drift into it.
+
+Startup validation reports missing or malformed values by *name* only; it never echoes the
+value, so a misconfiguration cannot leak a secret into a log or an error page.
 
 If the field key is rotated, stored mailbox passwords become unreadable. The app reports
 this instead of crashing silently; re-create the affected addresses.

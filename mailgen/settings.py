@@ -11,6 +11,8 @@ from pathlib import Path
 from django.core.exceptions import ImproperlyConfigured
 from dotenv import load_dotenv
 
+from . import config as appconfig
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # ---------------------------------------------------------------------------
@@ -49,17 +51,17 @@ def env_list(key: str, default: str = "") -> list[str]:
 
 DEBUG = env_bool("DJANGO_DEBUG", False)
 
-SECRET_KEY = env("DJANGO_SECRET_KEY")
-if not SECRET_KEY:
-    if DEBUG:
-        SECRET_KEY = "dev-only-insecure-key-do-not-use-in-production-0000000000"
-    else:
-        raise ImproperlyConfigured(
-            "DJANGO_SECRET_KEY is required. Set it in the environment or in MAILGEN_ENV_FILE."
-        )
-
-ALLOWED_HOSTS = env_list("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1,testserver")
+# Safe default: local hosts in development, explicit configuration in production
+# (an empty list here is reported as a startup error instead of silently
+# accepting arbitrary Host headers).
+_default_hosts = "localhost,127.0.0.1,[::1],testserver" if DEBUG else ""
+ALLOWED_HOSTS = env_list("DJANGO_ALLOWED_HOSTS", _default_hosts)
 CSRF_TRUSTED_ORIGINS = env_list("DJANGO_CSRF_TRUSTED_ORIGINS", "")
+
+SECRET_KEY = env("DJANGO_SECRET_KEY")
+if not SECRET_KEY and DEBUG:
+    # Development only; production is rejected by the validation below.
+    SECRET_KEY = "dev-only-insecure-key-do-not-use-in-production-0000000000"
 
 # ---------------------------------------------------------------------------
 # Applications
@@ -107,29 +109,26 @@ TEMPLATES = [
 WSGI_APPLICATION = "mailgen.wsgi.application"
 
 # ---------------------------------------------------------------------------
-# Database — MySQL/MariaDB (cPanel), SQLite only for throwaway local runs
+# Database — DATABASE_URL preferred; individual DB_* variables kept for
+# backwards compatibility with existing deployments.
 # ---------------------------------------------------------------------------
-DB_ENGINE = (env("DB_ENGINE", "mysql") or "mysql").lower()
+DATABASE_URL = env("DATABASE_URL")
 
-if DB_ENGINE == "sqlite":
-    DATABASES = {
-        "default": {
+if DATABASE_URL:
+    try:
+        _db = appconfig.parse_database_url(DATABASE_URL, BASE_DIR)
+    except appconfig.ConfigError as exc:
+        raise ImproperlyConfigured(f"Invalid DATABASE_URL: {exc}.") from exc
+else:
+    DB_ENGINE = (env("DB_ENGINE", "mysql") or "mysql").lower()
+
+    if DB_ENGINE == "sqlite":
+        _db = {
             "ENGINE": "django.db.backends.sqlite3",
             "NAME": env("DB_NAME", str(BASE_DIR / "db.sqlite3")),
         }
-    }
-else:
-    try:
-        import pymysql
-
-        pymysql.install_as_MySQLdb()
-    except ImportError as exc:  # pragma: no cover - deployment guard
-        raise ImproperlyConfigured(
-            "PyMySQL is required for MySQL. Install it or set DB_ENGINE=sqlite."
-        ) from exc
-
-    DATABASES = {
-        "default": {
+    else:
+        _db = {
             "ENGINE": "django.db.backends.mysql",
             "NAME": env("DB_NAME", ""),
             "USER": env("DB_USER", ""),
@@ -143,7 +142,18 @@ else:
             "CONN_MAX_AGE": 60,
             "TEST": {"CHARSET": "utf8mb4", "COLLATION": "utf8mb4_unicode_ci"},
         }
-    }
+
+if _db["ENGINE"].endswith("mysql"):
+    try:
+        import pymysql
+
+        pymysql.install_as_MySQLdb()
+    except ImportError as exc:  # pragma: no cover - deployment guard
+        raise ImproperlyConfigured(
+            "PyMySQL is required for MySQL. Install it or use a sqlite DATABASE_URL."
+        ) from exc
+
+DATABASES = {"default": _db}
 
 # ---------------------------------------------------------------------------
 # Authentication
@@ -207,6 +217,14 @@ STORAGES = {
     "staticfiles": {"BACKEND": "whitenoise.storage.CompressedStaticFilesStorage"},
 }
 
+# WhiteNoise must serve Django admin CSS/JS on cPanel (Passenger does not serve
+# /static/ itself). In development it can read from the finders; in production
+# it serves the collected files in STATIC_ROOT.
+WHITENOISE_AUTOREFRESH = DEBUG
+WHITENOISE_USE_FINDERS = DEBUG
+WHITENOISE_MAX_AGE = 0 if DEBUG else 31536000
+WHITENOISE_ALLOW_ALL_ORIGINS = False
+
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 LANGUAGE_CODE = "en-us"
@@ -215,14 +233,25 @@ USE_I18N = True
 USE_TZ = True
 
 # ---------------------------------------------------------------------------
-# Application configuration (all optional values have safe defaults)
+# Application configuration
+#
+# MAILGEN_URL carries the address policy, e.g.
+#   mailgen://example.com?prefix=otp-&length=10&forward_to=me@example.net
+#                      &max_addresses=10&quota_mb=100
+# Individual MAILGEN_ADDRESS_* / MAILGEN_FORWARD_TO / MAILGEN_MAX_* variables
+# still work and take precedence (backwards compatibility).
 # ---------------------------------------------------------------------------
-MAILGEN_ADDRESS_DOMAIN = env("MAILGEN_ADDRESS_DOMAIN", "")
-MAILGEN_ADDRESS_PREFIX = env("MAILGEN_ADDRESS_PREFIX", "otp-")
-MAILGEN_ADDRESS_LENGTH = env_int("MAILGEN_ADDRESS_LENGTH", 10)
-MAILGEN_FORWARD_TO = env("MAILGEN_FORWARD_TO", "")
-MAILGEN_MAX_ADDRESSES = env_int("MAILGEN_MAX_ADDRESSES", 10)
-MAILGEN_QUOTA_MB = env_int("MAILGEN_QUOTA_MB", 100)
+try:
+    MAILGEN_MAIL = appconfig.resolve_mail_settings(os.environ)
+except appconfig.ConfigError as exc:
+    raise ImproperlyConfigured(f"Invalid MAILGEN_URL: {exc}.") from exc
+
+MAILGEN_ADDRESS_DOMAIN = MAILGEN_MAIL["domain"]
+MAILGEN_ADDRESS_PREFIX = MAILGEN_MAIL["prefix"]
+MAILGEN_ADDRESS_LENGTH = MAILGEN_MAIL["length"]
+MAILGEN_FORWARD_TO = MAILGEN_MAIL["forward_to"]
+MAILGEN_MAX_ADDRESSES = MAILGEN_MAIL["max_addresses"]
+MAILGEN_QUOTA_MB = MAILGEN_MAIL["quota_mb"]
 
 # Fernet key (urlsafe base64, 32 bytes) used to encrypt mailbox passwords at rest.
 MAILGEN_FIELD_KEY = env("MAILGEN_FIELD_KEY", "")
@@ -274,3 +303,23 @@ LOGGING = {
         "mailgen": {"handlers": ["file", "console"], "level": "INFO", "propagate": False},
     },
 }
+
+# ---------------------------------------------------------------------------
+# Startup validation — fail fast with actionable, secret-free messages.
+# ---------------------------------------------------------------------------
+_config_errors = appconfig.validate_core(
+    debug=DEBUG,
+    secret_key=SECRET_KEY or "",
+    allowed_hosts=ALLOWED_HOSTS,
+    field_key=MAILGEN_FIELD_KEY,
+    cpanel_base_url=CPANEL_BASE_URL,
+    imap_host=IMAP_HOST,
+)
+_config_errors += appconfig.validate_mail_settings(
+    MAILGEN_MAIL, require_configured=not DEBUG
+)
+
+if _config_errors:
+    raise ImproperlyConfigured(
+        "Invalid configuration:\n - " + "\n - ".join(_config_errors)
+    )

@@ -54,14 +54,28 @@ chmod 600 /home/USER/.mailgen/env
 python manage.py generate_field_key   # paste into MAILGEN_FIELD_KEY
 ```
 
+Only these values are required:
+
+```
+DJANGO_SECRET_KEY=...
+DATABASE_URL=mysql://cpuser_mailgen:PASSWORD@localhost:3306/cpuser_mailgen?charset=utf8mb4
+MAILGEN_URL=mailgen://example.com?prefix=otp-&length=10&forward_to=primary@example.com&max_addresses=10&quota_mb=100
+MAILGEN_FIELD_KEY=...
+CPANEL_BASE_URL=https://server.example.com:2083
+CPANEL_USER=cpuser
+CPANEL_TOKEN=...
+IMAP_HOST=mail.example.com
+```
+
 `passenger_wsgi.py` defaults `MAILGEN_ENV_FILE` to `/home/USER/.mailgen/env`; adjust the
 path there if you use a different location. The file is outside the document root and is
-never served.
+never served. Credentials stay in their own variables — never inside `MAILGEN_URL`.
 
 ## 6. Database
 
 cPanel » **MySQL Databases**: create `cpuser_mailgen` and a user with privileges on that
-database only. Put the credentials in the env file.
+database only. Put the credentials in `DATABASE_URL` (percent-encode special characters,
+e.g. `p@ss` → `p%40ss`).
 
 ## 7. Initialise
 
@@ -69,8 +83,9 @@ database only. Put the credentials in the env file.
 source /home/USER/virtualenv/app.example.com/3.11/bin/activate
 cd /home/USER/apps/mailgen
 
+python manage.py check                 # configuration validation
 python manage.py migrate
-python manage.py collectstatic --noinput
+python manage.py collectstatic --noinput   # required for admin CSS/JS (WhiteNoise)
 python manage.py create_admin --username admin     # prompts for a password
 python manage.py check_hosting --offline
 ```
